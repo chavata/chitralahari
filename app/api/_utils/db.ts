@@ -85,15 +85,26 @@ export async function createDailyPuzzleForToday(dateStr: string): Promise<DailyP
     .from("movies")
     .select("*")
     .order("popularity", { ascending: false })
-    .limit(500)
+    .limit(2000)
     .returns<MovieRecord[]>();
   if (moviesErr) throw moviesErr;
   if (!movies || movies.length === 0) throw new Error("No movies in database");
 
-  // Prefer movies whose titles are purely non-Telugu (English / Latin) so
-  // that answers and guesses are in the same script.
-  const nonTelugu = movies.filter(m => !containsTelugu(m.title));
-  const pool = nonTelugu.length > 0 ? nonTelugu : movies;
+  const launchDate = await getLaunchDate(dateStr);
+  const daysSinceLaunch = daysBetween(launchDate, dateStr);
+  const popularOnly = daysSinceLaunch < 60;
+
+  const previouslyUsed = await getUsedMovieIds();
+
+  const filtered = movies.filter(m => {
+    const letters = (m.normalized_title ?? "").replace(/\s+/g, "").length;
+    const lengthOk = letters >= 1 && letters <= 10;
+    const notUsed = !previouslyUsed.has(m.id);
+    return lengthOk && notUsed;
+  });
+
+  const popularPool = popularOnly ? filtered.slice(0, 500) : filtered;
+  const pool = popularPool.length > 0 ? popularPool : filtered.length > 0 ? filtered : movies;
 
   const index = deterministicIndexForDate(dateStr, pool.length);
   const movie = pool[index];
@@ -128,4 +139,30 @@ export function buildTitleShape(title: string): string {
 
 function containsTelugu(input: string): boolean {
   return /[\u0C00-\u0C7F]/.test(input);
+}
+
+async function getLaunchDate(fallbackDate: string): Promise<string> {
+  if (!supabase) return fallbackDate;
+  const { data, error } = await supabase
+    .from("daily_puzzles")
+    .select("puzzle_date")
+    .order("puzzle_date", { ascending: true })
+    .limit(1);
+  if (error || !data || data.length === 0) return fallbackDate;
+  return (data[0] as { puzzle_date: string }).puzzle_date;
+}
+
+function daysBetween(startDate: string, endDate: string): number {
+  const start = new Date(`${startDate}T00:00:00Z`).getTime();
+  const end = new Date(`${endDate}T00:00:00Z`).getTime();
+  return Math.max(0, Math.floor((end - start) / 86400000));
+}
+
+async function getUsedMovieIds(): Promise<Set<number>> {
+  if (!supabase) return new Set();
+  const { data, error } = await supabase.from("daily_puzzles").select("movie_id");
+  if (error || !data) return new Set();
+  return new Set(
+    data.map(row => (row as { movie_id: number }).movie_id).filter(Boolean)
+  );
 }
