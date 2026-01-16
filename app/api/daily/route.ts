@@ -34,7 +34,9 @@ function todayDateString(timeZone?: string): string {
 
 export async function GET(req: NextRequest) {
   try {
-    const tz = new URL(req.url).searchParams.get("tz") ?? undefined;
+    const url = new URL(req.url);
+    const tz = url.searchParams.get("tz") ?? undefined;
+    const force = url.searchParams.get("force") === "1";
     const dateStr = todayDateString(tz);
     let { daily, movie } = await getTodayPuzzle(dateStr);
 
@@ -45,6 +47,12 @@ export async function GET(req: NextRequest) {
         daily = null;
         movie = null;
       }
+    }
+
+    if (force && daily) {
+      await deleteDailyPuzzle(daily.id);
+      daily = null;
+      movie = null;
     }
 
     if (!daily) {
