@@ -67,6 +67,7 @@ export default function DailyPuzzleClient() {
   const [huntCount, setHuntCount] = useState(0);
   const [huntPool, setHuntPool] = useState<"popular" | "all">("popular");
   const [huntMaxLen, setHuntMaxLen] = useState<number | null>(10);
+  const [huntScore, setHuntScore] = useState(0);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -184,7 +185,8 @@ export default function DailyPuzzleClient() {
   }, [search]);
 
   const maxGuesses = puzzle?.maxGuesses ?? 5;
-  const isGameOver = hasWon || guesses.length >= maxGuesses;
+  const isGameOver =
+    mode === "daily" ? hasWon || guesses.length >= maxGuesses : guesses.length >= maxGuesses;
   const showDirector = guesses.length >= 3;
   const showCast = guesses.length >= 4;
 
@@ -247,20 +249,54 @@ export default function DailyPuzzleClient() {
       setGuesses(nextGuesses);
 
       if (correct) {
-        setStatus(
-          `Correct! The movie was ${movie.title} (${answerLetterCount} letters).`
-        );
-        setHasWon(true);
-        updateStreak(true);
-        setShowConfetti(true);
-        setShowResultModal(true);
-        window.setTimeout(() => setShowConfetti(false), 4200);
+        if (mode === "hunt") {
+          setHuntScore(prev => prev + 1);
+          setStatus("Correct! Next hunt starting…");
+          setShowConfetti(true);
+          window.setTimeout(() => setShowConfetti(false), 2000);
+
+          const next = huntCount + 1;
+          setHuntCount(next);
+          if (next <= 5) {
+            setHuntPool("popular");
+            setHuntMaxLen(10);
+          } else if (next <= 10) {
+            setHuntPool("popular");
+            setHuntMaxLen(null);
+          } else {
+            setHuntPool("all");
+            setHuntMaxLen(null);
+          }
+          if (typeof window !== "undefined") {
+            window.localStorage.setItem(
+              "chitralahari-hunt-count",
+              String(next)
+            );
+          }
+          setHuntNonce(prev => prev + 1);
+        } else {
+          setStatus(
+            `Correct! The movie was ${movie.title} (${answerLetterCount} letters).`
+          );
+          setHasWon(true);
+          updateStreak(true);
+          setShowConfetti(true);
+          setShowResultModal(true);
+          window.setTimeout(() => setShowConfetti(false), 4200);
+        }
       } else if (nextGuesses.length >= puzzle.maxGuesses) {
-        setStatus(
-          `Out of guesses. The movie was ${puzzle.answerTitle} (${answerLetterCount} letters). Come back tomorrow for a new one.`
-        );
-        updateStreak(false);
-        setShowResultModal(true);
+        if (mode === "hunt") {
+          setStatus(
+            `Run over. Your score: ${huntScore}. The movie was ${puzzle.answerTitle}.`
+          );
+          setShowResultModal(true);
+        } else {
+          setStatus(
+            `Out of guesses. The movie was ${puzzle.answerTitle} (${answerLetterCount} letters). Come back tomorrow for a new one.`
+          );
+          updateStreak(false);
+          setShowResultModal(true);
+        }
       }
     } catch (e) {
       console.error(e);
@@ -453,7 +489,9 @@ export default function DailyPuzzleClient() {
       <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4 space-y-2">
         <div className="flex justify-between text-xs text-slate-400">
           <span>
-            {mode === "daily" ? `Date: ${formattedDate}` : "Mode: Highscore Hunts"}
+            {mode === "daily"
+              ? `Date: ${formattedDate}`
+              : `Mode: Highscore Hunts • Score: ${huntScore}`}
           </span>
           {puzzle.year && <span>Year of release: {puzzle.year}</span>}
         </div>
@@ -508,6 +546,7 @@ export default function DailyPuzzleClient() {
           <button
             onClick={() => {
               setMode("hunt");
+              setHuntScore(0);
               const next = huntCount + 1;
               setHuntCount(next);
               if (next <= 5) {
@@ -722,6 +761,36 @@ export default function DailyPuzzleClient() {
               </button>
               {shareStatus && (
                 <span className="text-xs text-slate-400">{shareStatus}</span>
+              )}
+              {mode === "hunt" && (
+                <button
+                  onClick={() => {
+                    setShowResultModal(false);
+                    setHuntScore(0);
+                    const next = huntCount + 1;
+                    setHuntCount(next);
+                    if (next <= 5) {
+                      setHuntPool("popular");
+                      setHuntMaxLen(10);
+                    } else if (next <= 10) {
+                      setHuntPool("popular");
+                      setHuntMaxLen(null);
+                    } else {
+                      setHuntPool("all");
+                      setHuntMaxLen(null);
+                    }
+                    if (typeof window !== "undefined") {
+                      window.localStorage.setItem(
+                        "chitralahari-hunt-count",
+                        String(next)
+                      );
+                    }
+                    setHuntNonce(prev => prev + 1);
+                  }}
+                  className="px-3 py-1.5 rounded-md border border-slate-700 text-xs text-slate-300 hover:bg-slate-800"
+                >
+                  Start new run
+                </button>
               )}
             </div>
           </div>
