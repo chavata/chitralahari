@@ -291,6 +291,9 @@ export default function DailyPuzzleClient() {
 
   function buildShareText() {
     if (!puzzle) return "";
+    const url =
+      (typeof window !== "undefined" && window.location.origin) ||
+      "https://wtwchitralahari.netlify.app";
     const rows = guesses.map(g =>
       g.colors
         .map(c => (c === "green" ? "🟩" : c === "yellow" ? "🟨" : "⬛"))
@@ -303,15 +306,28 @@ export default function DailyPuzzleClient() {
       "",
       ...rows,
       "",
-      `Streak: ${streak}`
+      `Streak: ${streak}`,
+      url
     ].join("\n");
   }
 
   async function handleShare() {
     const text = buildShareText();
     try {
-      await navigator.clipboard.writeText(text);
-      setShareStatus("Copied!");
+      const url =
+        (typeof window !== "undefined" && window.location.href) ||
+        "https://wtwchitralahari.netlify.app";
+      if (navigator.share) {
+        await navigator.share({
+          title: "Chitralahari",
+          text,
+          url
+        });
+        setShareStatus("Shared!");
+      } else {
+        await navigator.clipboard.writeText(text);
+        setShareStatus("Copied!");
+      }
       window.setTimeout(() => setShareStatus(null), 1500);
     } catch {
       setShareStatus("Copy failed");
@@ -394,8 +410,8 @@ export default function DailyPuzzleClient() {
         )}
       </div>
 
-      <div className="rounded-xl border border-slate-800 bg-slate-900/40 p-5 space-y-5">
-        <div className="space-y-3">
+      <div className="rounded-xl border border-slate-800 bg-slate-900/40 p-4 md:p-5 space-y-4 overflow-x-auto">
+        <div className="space-y-3 min-w-max">
           {[0, 1, 2, 3, 4].map(rowIndex => {
             const rowGuess = guesses[rowIndex];
             const isPreview = !rowGuess && selectedMovie && rowIndex === guesses.length;
@@ -415,7 +431,7 @@ export default function DailyPuzzleClient() {
               }
             });
             return (
-              <div key={rowIndex} className="flex justify-center">
+              <div key={rowIndex} className="flex justify-start md:justify-center">
                 {wordLengths.map((len, wordIndex) => {
                   const startIndex =
                     wordLengths.slice(0, wordIndex).reduce((a, b) => a + b, 0);
@@ -425,7 +441,9 @@ export default function DailyPuzzleClient() {
                       className="flex gap-1"
                       style={{
                         marginRight:
-                          wordIndex < wordLengths.length - 1 ? 20 : 0
+                          wordIndex < wordLengths.length - 1
+                            ? "clamp(8px, 3vw, 20px)"
+                            : 0
                       }}
                     >
                       {Array.from({ length: len }).map((_, offset) => {
@@ -448,7 +466,7 @@ export default function DailyPuzzleClient() {
                         return (
                           <span
                             key={colIndex}
-                            className={`tile w-10 h-10 md:w-9 md:h-9 rounded-md text-lg font-bold flex items-center justify-center ${
+                            className={`tile w-8 h-8 text-sm md:w-10 md:h-10 md:text-lg rounded-md font-bold flex items-center justify-center ${
                               isRevealed ? "revealed" : ""
                             } ${bg}`}
                             style={{

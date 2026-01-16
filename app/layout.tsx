@@ -3,7 +3,22 @@ import "./globals.css";
 
 export const metadata = {
   title: "Chitralahari - Telugu Movie Puzzle",
-  description: "Daily Telugu movie guessing game with Wordle-style feedback."
+  description: "Daily Telugu movie guessing game with Wordle-style feedback.",
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_SITE_URL ?? "https://wtwchitralahari.netlify.app"
+  ),
+  openGraph: {
+    title: "Chitralahari",
+    description: "Guess today's Telugu movie title in 5 attempts.",
+    url: "/",
+    siteName: "Chitralahari",
+    type: "website"
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Chitralahari",
+    description: "Guess today's Telugu movie title in 5 attempts."
+  }
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
