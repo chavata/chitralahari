@@ -293,10 +293,16 @@ export default function DailyPuzzleClient() {
   const answerLetterCount = Array.from(
     normalizeTeluguTitle(puzzle.answerTitle)
   ).filter(ch => ch !== " ").length;
-  const formattedDate = new Date(`${puzzle.date}T00:00:00Z`).toLocaleDateString(
-    "en-US",
-    { month: "short", day: "numeric", year: "numeric" }
-  );
+  const formattedDate = (() => {
+    const [y, m, d] = puzzle.date.split("-").map(Number);
+    if (!y || !m || !d) return puzzle.date;
+    const localDate = new Date(y, m - 1, d);
+    return localDate.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric"
+    });
+  })();
 
   const posterUrl = puzzle.posterPath
     ? `https://image.tmdb.org/t/p/w342${puzzle.posterPath}`
