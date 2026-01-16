@@ -66,6 +66,7 @@ export default function DailyPuzzleClient() {
   const [huntNonce, setHuntNonce] = useState(0);
   const [huntCount, setHuntCount] = useState(0);
   const [huntPool, setHuntPool] = useState<"popular" | "all">("popular");
+  const [huntMaxLen, setHuntMaxLen] = useState<number | null>(10);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -91,7 +92,9 @@ export default function DailyPuzzleClient() {
         const url =
           mode === "daily"
             ? `/api/daily?tz=${encodeURIComponent(timeZone ?? "UTC")}`
-            : `/api/hunt?pool=${huntPool}`;
+            : `/api/hunt?pool=${huntPool}${
+                huntMaxLen ? `&maxLen=${huntMaxLen}` : ""
+              }`;
         const res = await fetch(url, { cache: "no-store" });
         if (!res.ok) throw new Error("Failed to load puzzle");
         const data = await res.json();
@@ -136,7 +139,16 @@ export default function DailyPuzzleClient() {
     const count = raw ? Number(raw) : 0;
     const safe = Number.isFinite(count) ? count : 0;
     setHuntCount(safe);
-    setHuntPool(safe > 0 && safe <= 5 ? "popular" : "all");
+    if (safe > 0 && safe <= 5) {
+      setHuntPool("popular");
+      setHuntMaxLen(10);
+    } else if (safe > 5 && safe <= 10) {
+      setHuntPool("popular");
+      setHuntMaxLen(null);
+    } else {
+      setHuntPool("all");
+      setHuntMaxLen(null);
+    }
   }, []);
 
   useEffect(() => {
@@ -498,7 +510,16 @@ export default function DailyPuzzleClient() {
               setMode("hunt");
               const next = huntCount + 1;
               setHuntCount(next);
-              setHuntPool(next <= 5 ? "popular" : "all");
+              if (next <= 5) {
+                setHuntPool("popular");
+                setHuntMaxLen(10);
+              } else if (next <= 10) {
+                setHuntPool("popular");
+                setHuntMaxLen(null);
+              } else {
+                setHuntPool("all");
+                setHuntMaxLen(null);
+              }
               if (typeof window !== "undefined") {
                 window.localStorage.setItem(
                   "chitralahari-hunt-count",
@@ -521,7 +542,16 @@ export default function DailyPuzzleClient() {
             onClick={() => {
               const next = huntCount + 1;
               setHuntCount(next);
-              setHuntPool(next <= 5 ? "popular" : "all");
+              if (next <= 5) {
+                setHuntPool("popular");
+                setHuntMaxLen(10);
+              } else if (next <= 10) {
+                setHuntPool("popular");
+                setHuntMaxLen(null);
+              } else {
+                setHuntPool("all");
+                setHuntMaxLen(null);
+              }
               if (typeof window !== "undefined") {
                 window.localStorage.setItem(
                   "chitralahari-hunt-count",

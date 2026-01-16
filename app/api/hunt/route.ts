@@ -10,6 +10,8 @@ export async function GET(req: Request) {
 
     const url = new URL(req.url);
     const pool = url.searchParams.get("pool") ?? "all";
+    const maxLenParam = url.searchParams.get("maxLen");
+    const maxLen = maxLenParam ? Number(maxLenParam) : null;
     const limit = pool === "popular" ? 1000 : 4000;
 
     // Pull a large pool and pick a random movie (no length/popularity limits here).
@@ -22,7 +24,17 @@ export async function GET(req: Request) {
     if (error) throw error;
     if (!movies || movies.length === 0) throw new Error("No movies available");
 
-    const pick = movies[Math.floor(Math.random() * movies.length)] as {
+    const filtered =
+      maxLen && Number.isFinite(maxLen)
+        ? movies.filter(m => {
+            const letters = (m.normalized_title ?? "").replace(/\s+/g, "").length;
+            return letters >= 1 && letters <= maxLen;
+          })
+        : movies;
+
+    const poolToUse = filtered.length > 0 ? filtered : movies;
+
+    const pick = poolToUse[Math.floor(Math.random() * poolToUse.length)] as {
       tmdb_id: number;
       title: string;
       release_year: number | null;
