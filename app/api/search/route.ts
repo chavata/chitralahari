@@ -3,6 +3,8 @@ import { supabase } from "@/lib/supabaseClient";
 import { searchTeluguMovies } from "../_utils/tmdb";
 import { upsertMovieFromTmdb } from "../_utils/db";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(req: NextRequest) {
   try {
     if (!supabase) throw new Error("Supabase not configured");

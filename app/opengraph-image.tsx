@@ -21,7 +21,7 @@ export default function OpenGraphImage() {
           flexDirection: "column",
           justifyContent: "center",
           background:
-            "radial-gradient(1000px 600px at 10% 10%, #0f172a 0%, #020617 60%)",
+            "radial-gradient(circle at 10% 10%, #0f172a 0%, #020617 70%)",
           color: "#e2e8f0",
           padding: "80px",
           fontFamily: "system-ui, -apple-system, Segoe UI, sans-serif"

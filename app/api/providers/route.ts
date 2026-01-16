@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { tmdbFetch } from "../_utils/tmdb";
 
+export const dynamic = "force-dynamic";
+
 type ProvidersResponse = {
   results: {
     IN?: {
