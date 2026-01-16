@@ -290,6 +290,7 @@ export default function DailyPuzzleClient() {
     : null;
 
   function buildShareText() {
+    if (!puzzle) return "";
     const rows = guesses.map(g =>
       g.colors
         .map(c => (c === "green" ? "🟩" : c === "yellow" ? "🟨" : "⬛"))
