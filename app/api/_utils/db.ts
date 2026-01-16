@@ -78,6 +78,12 @@ export async function getTodayPuzzle(dateStr: string): Promise<{
   return { daily, movie };
 }
 
+export async function deleteDailyPuzzle(id: number) {
+  if (!supabase) throw new Error("Supabase not configured");
+  const { error } = await supabase.from("daily_puzzles").delete().eq("id", id);
+  if (error) throw error;
+}
+
 export async function createDailyPuzzleForToday(dateStr: string): Promise<DailyPuzzleRecord> {
   if (!supabase) throw new Error("Supabase not configured");
 
@@ -165,4 +171,42 @@ async function getUsedMovieIds(): Promise<Set<number>> {
   return new Set(
     data.map(row => (row as { movie_id: number }).movie_id).filter(Boolean)
   );
+}
+
+export async function isDailyPuzzleValid(
+  dateStr: string,
+  daily: DailyPuzzleRecord,
+  movie: MovieRecord
+): Promise<boolean> {
+  if (!supabase) return false;
+
+  const letters = (movie.normalized_title ?? "").replace(/\s+/g, "").length;
+  if (letters < 1 || letters > 10) return false;
+
+  const launchDate = await getLaunchDate(dateStr);
+  const daysSinceLaunch = daysBetween(launchDate, dateStr);
+  const popularOnly = daysSinceLaunch < 60;
+
+  if (popularOnly) {
+    const { data, error } = await supabase
+      .from("movies")
+      .select("id")
+      .order("popularity", { ascending: false })
+      .limit(500);
+    if (error || !data) return false;
+    const topIds = new Set(data.map(row => (row as { id: number }).id));
+    if (!topIds.has(movie.id)) return false;
+  }
+
+  // Ensure no repeats across other dates
+  const { data: dupes, error: dupesErr } = await supabase
+    .from("daily_puzzles")
+    .select("id")
+    .eq("movie_id", daily.movie_id)
+    .neq("puzzle_date", dateStr)
+    .limit(1);
+  if (dupesErr) return false;
+  if (dupes && dupes.length > 0) return false;
+
+  return true;
 }

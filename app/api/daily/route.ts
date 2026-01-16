@@ -1,5 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { buildTitleShape, createDailyPuzzleForToday, getTodayPuzzle } from "../_utils/db";
+import {
+  buildTitleShape,
+  createDailyPuzzleForToday,
+  deleteDailyPuzzle,
+  getTodayPuzzle,
+  isDailyPuzzleValid
+} from "../_utils/db";
 
 function todayDateString(timeZone?: string): string {
   const now = new Date();
@@ -31,6 +37,15 @@ export async function GET(req: NextRequest) {
     const tz = new URL(req.url).searchParams.get("tz") ?? undefined;
     const dateStr = todayDateString(tz);
     let { daily, movie } = await getTodayPuzzle(dateStr);
+
+    if (daily && movie) {
+      const valid = await isDailyPuzzleValid(dateStr, daily, movie);
+      if (!valid) {
+        await deleteDailyPuzzle(daily.id);
+        daily = null;
+        movie = null;
+      }
+    }
 
     if (!daily) {
       daily = await createDailyPuzzleForToday(dateStr);
