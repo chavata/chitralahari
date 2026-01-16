@@ -68,9 +68,12 @@ export default function DailyPuzzleClient() {
     if (!timeZone) return;
     async function loadPuzzle() {
       try {
-        const res = await fetch(`/api/daily?tz=${encodeURIComponent(timeZone)}`, {
+        const res = await fetch(
+          `/api/daily?tz=${encodeURIComponent(timeZone ?? "UTC")}`,
+          {
           cache: "no-store"
-        });
+          }
+        );
         if (!res.ok) throw new Error("Failed to load puzzle");
         const data = await res.json();
         setPuzzle(data);
