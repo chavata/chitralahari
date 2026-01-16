@@ -323,8 +323,6 @@ export default function DailyPuzzleClient() {
   if (!puzzle) return null;
 
   const remaining = puzzle.maxGuesses - guesses.length;
-  const showDirector = guesses.length >= 3;
-  const showCast = guesses.length >= 4;
   const wordLengths = puzzle.titleShape
     .split(/\s+/)
     .filter(Boolean)
