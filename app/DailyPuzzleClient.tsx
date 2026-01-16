@@ -1,7 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { normalizeTeluguTitle, type TileColor } from "./api/_utils/wordle";
+import {
+  compareTitlesWordleStyle,
+  normalizeTeluguTitle,
+  type TileColor
+} from "./api/_utils/wordle";
 
 type PuzzleInfo = {
   date: string;
@@ -11,6 +15,7 @@ type PuzzleInfo = {
   posterPath: string | null;
   answerTitle: string;
   maxGuesses: number;
+  mode?: "daily" | "hunt";
 };
 
 type GuessRow = {
@@ -57,6 +62,8 @@ export default function DailyPuzzleClient() {
   const [shareStatus, setShareStatus] = useState<string | null>(null);
   const [showResultModal, setShowResultModal] = useState(false);
   const [timeZone, setTimeZone] = useState<string | null>(null);
+  const [mode, setMode] = useState<"daily" | "hunt">("daily");
+  const [huntNonce, setHuntNonce] = useState(0);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -65,18 +72,28 @@ export default function DailyPuzzleClient() {
   }, []);
 
   useEffect(() => {
-    if (!timeZone) return;
     async function loadPuzzle() {
       try {
-        const res = await fetch(
-          `/api/daily?tz=${encodeURIComponent(timeZone ?? "UTC")}`,
-          {
-          cache: "no-store"
-          }
-        );
+        setLoading(true);
+        setError(null);
+        setStatus(null);
+        setShowResultModal(false);
+        setSelectedMovie(null);
+        setSearch("");
+        setSearchResults([]);
+        setGuesses([]);
+        setHasWon(false);
+        setCredits(null);
+        setProviders(null);
+
+        const url =
+          mode === "daily"
+            ? `/api/daily?tz=${encodeURIComponent(timeZone ?? "UTC")}`
+            : "/api/hunt";
+        const res = await fetch(url, { cache: "no-store" });
         if (!res.ok) throw new Error("Failed to load puzzle");
         const data = await res.json();
-        setPuzzle(data);
+        setPuzzle({ ...data, mode });
       } catch (e) {
         console.error(e);
         setError("Puzzle failed to load. Please try again later.");
@@ -84,8 +101,13 @@ export default function DailyPuzzleClient() {
         setLoading(false);
       }
     }
-    loadPuzzle();
-  }, [timeZone]);
+
+    if (mode === "daily") {
+      if (timeZone) loadPuzzle();
+    } else {
+      loadPuzzle();
+    }
+  }, [timeZone, mode, huntNonce]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -140,22 +162,22 @@ export default function DailyPuzzleClient() {
 
   const maxGuesses = puzzle?.maxGuesses ?? 5;
   const isGameOver = hasWon || guesses.length >= maxGuesses;
+  const showDirector = mode === "daily" && guesses.length >= 3;
+  const showCast = mode === "daily" && guesses.length >= 4;
 
   useEffect(() => {
     if (!puzzle) return;
-    const showDirector = guesses.length >= 3;
-    const showCast = guesses.length >= 4;
-    if ((showDirector || showCast || isGameOver) && !credits && !creditsLoading) {
+    if ((showDirector || showCast || (isGameOver && mode === "daily")) && !credits && !creditsLoading) {
       loadCredits(puzzle.tmdbId);
     }
-  }, [puzzle, guesses.length, credits, creditsLoading, isGameOver]);
+  }, [puzzle, showDirector, showCast, credits, creditsLoading, isGameOver, mode]);
 
   useEffect(() => {
     if (!puzzle) return;
-    if (isGameOver && !providers && !providersLoading) {
+    if (mode === "daily" && isGameOver && !providers && !providersLoading) {
       loadProviders(puzzle.tmdbId);
     }
-  }, [puzzle, isGameOver, providers, providersLoading]);
+  }, [puzzle, isGameOver, providers, providersLoading, mode]);
 
 
   async function handleGuess(movie: MovieOption) {
@@ -165,25 +187,43 @@ export default function DailyPuzzleClient() {
     setSubmitting(true);
     setStatus(null);
     try {
-      const res = await fetch("/api/guess", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tmdbId: movie.tmdbId, timeZone: timeZone ?? "UTC" })
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || "Guess failed");
+      let colors: TileColor[] = [];
+      let correct = false;
+
+      if (mode === "daily") {
+        const res = await fetch("/api/guess", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            tmdbId: movie.tmdbId,
+            timeZone: timeZone ?? "UTC"
+          })
+        });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data.error || "Guess failed");
+        }
+        const data = await res.json();
+        colors = data.colors;
+        correct = data.correct;
+      } else {
+        const result = compareTitlesWordleStyle(
+          puzzle.answerTitle,
+          movie.title
+        );
+        colors = result.colors;
+        correct = result.correct;
       }
-      const data = await res.json();
+
       const row: GuessRow = {
         movieId: movie.id,
         title: movie.title,
-        colors: data.colors
+        colors
       };
       const nextGuesses = [...guesses, row];
       setGuesses(nextGuesses);
 
-      if (data.correct) {
+      if (correct) {
         setStatus(
           `Correct! The movie was ${movie.title} (${answerLetterCount} letters).`
         );
@@ -390,7 +430,9 @@ export default function DailyPuzzleClient() {
       )}
       <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4 space-y-2">
         <div className="flex justify-between text-xs text-slate-400">
-          <span>Date: {formattedDate}</span>
+          <span>
+            {mode === "daily" ? `Date: ${formattedDate}` : "Mode: Highscore Hunts"}
+          </span>
           {puzzle.year && <span>Year of release: {puzzle.year}</span>}
         </div>
         <div className="text-sm text-slate-200 flex flex-wrap gap-2 items-center">
@@ -429,8 +471,41 @@ export default function DailyPuzzleClient() {
         )}
       </div>
 
-      <div className="rounded-xl border border-slate-800 bg-slate-900/40 p-4 md:p-5 space-y-4 overflow-x-auto">
-        <div className="space-y-3 min-w-max">
+      <div className="flex items-center justify-between text-xs text-slate-400">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setMode("daily")}
+            className={`px-2 py-1 rounded-md border ${
+              mode === "daily"
+                ? "border-cyan-400 text-cyan-200"
+                : "border-slate-700 text-slate-300"
+            }`}
+          >
+            Daily Dose
+          </button>
+          <button
+            onClick={() => setMode("hunt")}
+            className={`px-2 py-1 rounded-md border ${
+              mode === "hunt"
+                ? "border-cyan-400 text-cyan-200"
+                : "border-slate-700 text-slate-300"
+            }`}
+          >
+            Highscore Hunts
+          </button>
+        </div>
+        {mode === "hunt" && (
+          <button
+            onClick={() => setHuntNonce(prev => prev + 1)}
+            className="px-2 py-1 rounded-md border border-slate-700 text-slate-300"
+          >
+            New Hunt
+          </button>
+        )}
+      </div>
+
+      <div className="rounded-xl border border-slate-800 bg-slate-900/40 p-4 md:p-5 space-y-4">
+        <div className="space-y-3">
           {[0, 1, 2, 3, 4].map(rowIndex => {
             const rowGuess = guesses[rowIndex];
             const isPreview = !rowGuess && selectedMovie && rowIndex === guesses.length;
@@ -450,7 +525,7 @@ export default function DailyPuzzleClient() {
               }
             });
             return (
-              <div key={rowIndex} className="flex justify-start md:justify-center">
+              <div key={rowIndex} className="flex justify-center">
                 {wordLengths.map((len, wordIndex) => {
                   const startIndex =
                     wordLengths.slice(0, wordIndex).reduce((a, b) => a + b, 0);
@@ -513,7 +588,7 @@ export default function DailyPuzzleClient() {
           <div className="w-full max-w-lg rounded-xl border border-slate-800 bg-slate-900/95 p-5 shadow-xl">
             <div className="flex items-center justify-between">
               <div className="text-lg font-semibold text-slate-100">
-                Movie of the day
+                {mode === "daily" ? "Movie of the day" : "Hunt result"}
               </div>
               <button
                 onClick={() => setShowResultModal(false)}
