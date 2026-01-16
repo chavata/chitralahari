@@ -107,11 +107,11 @@ export async function createDailyPuzzleForToday(dateStr: string): Promise<DailyP
       answer_normalized: movie.normalized_title
     })
     .select("*")
-    .single()
-    .returns<DailyPuzzleRecord>();
+    .maybeSingle();
   if (error) throw error;
+  if (!data) throw new Error("Failed to create daily puzzle");
 
-  return data;
+  return data as DailyPuzzleRecord;
 }
 
 function deterministicIndexForDate(dateStr: string, modulo: number): number {
