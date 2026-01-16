@@ -56,11 +56,14 @@ export default function DailyPuzzleClient() {
   const [streak, setStreak] = useState(0);
   const [shareStatus, setShareStatus] = useState<string | null>(null);
   const [showResultModal, setShowResultModal] = useState(false);
+  const [timeZone, setTimeZone] = useState<string>("UTC");
 
   useEffect(() => {
     async function loadPuzzle() {
       try {
-        const res = await fetch("/api/daily", { cache: "no-store" });
+        const res = await fetch(`/api/daily?tz=${encodeURIComponent(timeZone)}`, {
+          cache: "no-store"
+        });
         if (!res.ok) throw new Error("Failed to load puzzle");
         const data = await res.json();
         setPuzzle(data);
@@ -72,6 +75,12 @@ export default function DailyPuzzleClient() {
       }
     }
     loadPuzzle();
+  }, [timeZone]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    if (tz) setTimeZone(tz);
   }, []);
 
   useEffect(() => {
@@ -155,7 +164,7 @@ export default function DailyPuzzleClient() {
       const res = await fetch("/api/guess", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tmdbId: movie.tmdbId })
+        body: JSON.stringify({ tmdbId: movie.tmdbId, timeZone })
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));

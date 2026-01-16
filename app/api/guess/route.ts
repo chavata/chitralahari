@@ -3,12 +3,29 @@ import { supabase } from "@/lib/supabaseClient";
 import { compareTitlesWordleStyle } from "../_utils/wordle";
 import { getTodayPuzzle } from "../_utils/db";
 
-function todayDateString(): string {
+function todayDateString(timeZone?: string): string {
   const now = new Date();
-  const yyyy = now.getUTCFullYear();
-  const mm = String(now.getUTCMonth() + 1).padStart(2, "0");
-  const dd = String(now.getUTCDate()).padStart(2, "0");
-  return `${yyyy}-${mm}-${dd}`;
+  const safeZone = timeZone ?? "UTC";
+  let parts: Intl.DateTimeFormatPart[];
+  try {
+    parts = new Intl.DateTimeFormat("en-CA", {
+      timeZone: safeZone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit"
+    }).formatToParts(now);
+  } catch {
+    parts = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "UTC",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit"
+    }).formatToParts(now);
+  }
+  const year = parts.find(p => p.type === "year")?.value ?? "1970";
+  const month = parts.find(p => p.type === "month")?.value ?? "01";
+  const day = parts.find(p => p.type === "day")?.value ?? "01";
+  return `${year}-${month}-${day}`;
 }
 
 export async function POST(req: NextRequest) {
@@ -16,11 +33,12 @@ export async function POST(req: NextRequest) {
     if (!supabase) throw new Error("Supabase not configured");
     const body = await req.json();
     const tmdbId = body.tmdbId as number | undefined;
+    const tz = (body.timeZone as string | undefined) ?? undefined;
     if (!tmdbId) {
       return NextResponse.json({ error: "tmdbId is required" }, { status: 400 });
     }
 
-    const dateStr = todayDateString();
+    const dateStr = todayDateString(tz);
     const { daily } = await getTodayPuzzle(dateStr);
     if (!daily) throw new Error("Daily puzzle not found");
 

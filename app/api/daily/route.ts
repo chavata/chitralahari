@@ -1,17 +1,35 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { buildTitleShape, createDailyPuzzleForToday, getTodayPuzzle } from "../_utils/db";
 
-function todayDateString(): string {
+function todayDateString(timeZone?: string): string {
   const now = new Date();
-  const yyyy = now.getUTCFullYear();
-  const mm = String(now.getUTCMonth() + 1).padStart(2, "0");
-  const dd = String(now.getUTCDate()).padStart(2, "0");
-  return `${yyyy}-${mm}-${dd}`;
+  const safeZone = timeZone ?? "UTC";
+  let parts: Intl.DateTimeFormatPart[];
+  try {
+    parts = new Intl.DateTimeFormat("en-CA", {
+      timeZone: safeZone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit"
+    }).formatToParts(now);
+  } catch {
+    parts = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "UTC",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit"
+    }).formatToParts(now);
+  }
+  const year = parts.find(p => p.type === "year")?.value ?? "1970";
+  const month = parts.find(p => p.type === "month")?.value ?? "01";
+  const day = parts.find(p => p.type === "day")?.value ?? "01";
+  return `${year}-${month}-${day}`;
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
-    const dateStr = todayDateString();
+    const tz = new URL(req.url).searchParams.get("tz") ?? undefined;
+    const dateStr = todayDateString(tz);
     let { daily, movie } = await getTodayPuzzle(dateStr);
 
     if (!daily) {
