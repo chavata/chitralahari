@@ -27,6 +27,7 @@ export async function upsertMovieFromTmdb(movie: {
   id: number;
   title: string;
   original_title: string;
+  original_language?: string;
   release_date?: string;
   popularity?: number;
   poster_path?: string | null;
@@ -40,6 +41,7 @@ export async function upsertMovieFromTmdb(movie: {
       tmdb_id: movie.id,
       title: movie.title,
       original_title: movie.original_title,
+      original_language: movie.original_language ?? null,
       release_year: releaseYear,
       popularity: movie.popularity ?? null,
       poster_path: movie.poster_path ?? null,

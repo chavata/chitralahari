@@ -3,6 +3,7 @@ create table if not exists movies (
   tmdb_id integer unique not null,
   title text not null,
   original_title text,
+  original_language text,
   release_year integer,
   normalized_title text generated always as (
     lower(regexp_replace(title, '[\s\.,!?؛:;''"“”‘’\-–—(){}\[\]\/\\|@#$%^&*+=<>~`。、！？]+', ' ', 'g'))
