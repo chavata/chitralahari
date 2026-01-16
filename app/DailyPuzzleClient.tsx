@@ -64,6 +64,8 @@ export default function DailyPuzzleClient() {
   const [timeZone, setTimeZone] = useState<string | null>(null);
   const [mode, setMode] = useState<"daily" | "hunt">("daily");
   const [huntNonce, setHuntNonce] = useState(0);
+  const [huntCount, setHuntCount] = useState(0);
+  const [huntPool, setHuntPool] = useState<"popular" | "all">("popular");
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -89,7 +91,7 @@ export default function DailyPuzzleClient() {
         const url =
           mode === "daily"
             ? `/api/daily?tz=${encodeURIComponent(timeZone ?? "UTC")}`
-            : "/api/hunt";
+            : `/api/hunt?pool=${huntPool}`;
         const res = await fetch(url, { cache: "no-store" });
         if (!res.ok) throw new Error("Failed to load puzzle");
         const data = await res.json();
@@ -129,6 +131,15 @@ export default function DailyPuzzleClient() {
   }, []);
 
   useEffect(() => {
+    if (typeof window === "undefined") return;
+    const raw = window.localStorage.getItem("chitralahari-hunt-count");
+    const count = raw ? Number(raw) : 0;
+    const safe = Number.isFinite(count) ? count : 0;
+    setHuntCount(safe);
+    setHuntPool(safe > 0 && safe <= 5 ? "popular" : "all");
+  }, []);
+
+  useEffect(() => {
     if (!search.trim()) {
       setSearchResults([]);
       return;
@@ -162,22 +173,22 @@ export default function DailyPuzzleClient() {
 
   const maxGuesses = puzzle?.maxGuesses ?? 5;
   const isGameOver = hasWon || guesses.length >= maxGuesses;
-  const showDirector = mode === "daily" && guesses.length >= 3;
-  const showCast = mode === "daily" && guesses.length >= 4;
+  const showDirector = guesses.length >= 3;
+  const showCast = guesses.length >= 4;
 
   useEffect(() => {
     if (!puzzle) return;
-    if ((showDirector || showCast || (isGameOver && mode === "daily")) && !credits && !creditsLoading) {
+    if ((showDirector || showCast || isGameOver) && !credits && !creditsLoading) {
       loadCredits(puzzle.tmdbId);
     }
   }, [puzzle, showDirector, showCast, credits, creditsLoading, isGameOver, mode]);
 
   useEffect(() => {
     if (!puzzle) return;
-    if (mode === "daily" && isGameOver && !providers && !providersLoading) {
+    if (isGameOver && !providers && !providersLoading) {
       loadProviders(puzzle.tmdbId);
     }
-  }, [puzzle, isGameOver, providers, providersLoading, mode]);
+  }, [puzzle, isGameOver, providers, providersLoading]);
 
 
   async function handleGuess(movie: MovieOption) {
@@ -252,6 +263,7 @@ export default function DailyPuzzleClient() {
 
   function updateStreak(won: boolean) {
     if (typeof window === "undefined" || !puzzle) return;
+    if (mode !== "daily") return;
     const today = puzzle.date;
     const raw = window.localStorage.getItem("chitralahari-streak");
     let next = 0;
@@ -482,7 +494,19 @@ export default function DailyPuzzleClient() {
             Daily Dose
           </button>
           <button
-            onClick={() => setMode("hunt")}
+            onClick={() => {
+              setMode("hunt");
+              const next = huntCount + 1;
+              setHuntCount(next);
+              setHuntPool(next <= 5 ? "popular" : "all");
+              if (typeof window !== "undefined") {
+                window.localStorage.setItem(
+                  "chitralahari-hunt-count",
+                  String(next)
+                );
+              }
+              setHuntNonce(prev => prev + 1);
+            }}
             className={`px-2 py-1 rounded-md border ${
               mode === "hunt"
                 ? "border-cyan-400 text-cyan-200"
@@ -494,7 +518,18 @@ export default function DailyPuzzleClient() {
         </div>
         {mode === "hunt" && (
           <button
-            onClick={() => setHuntNonce(prev => prev + 1)}
+            onClick={() => {
+              const next = huntCount + 1;
+              setHuntCount(next);
+              setHuntPool(next <= 5 ? "popular" : "all");
+              if (typeof window !== "undefined") {
+                window.localStorage.setItem(
+                  "chitralahari-hunt-count",
+                  String(next)
+                );
+              }
+              setHuntNonce(prev => prev + 1);
+            }}
             className="px-2 py-1 rounded-md border border-slate-700 text-slate-300"
           >
             New Hunt

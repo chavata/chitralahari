@@ -4,16 +4,20 @@ import { buildTitleShape } from "../_utils/db";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
     if (!supabase) throw new Error("Supabase not configured");
+
+    const url = new URL(req.url);
+    const pool = url.searchParams.get("pool") ?? "all";
+    const limit = pool === "popular" ? 1000 : 4000;
 
     // Pull a large pool and pick a random movie (no length/popularity limits here).
     const { data: movies, error } = await supabase
       .from("movies")
       .select("id, tmdb_id, title, release_year, normalized_title, poster_path")
       .order("popularity", { ascending: false })
-      .limit(2000);
+      .limit(limit);
 
     if (error) throw error;
     if (!movies || movies.length === 0) throw new Error("No movies available");
