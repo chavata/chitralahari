@@ -56,9 +56,16 @@ export default function DailyPuzzleClient() {
   const [streak, setStreak] = useState(0);
   const [shareStatus, setShareStatus] = useState<string | null>(null);
   const [showResultModal, setShowResultModal] = useState(false);
-  const [timeZone, setTimeZone] = useState<string>("UTC");
+  const [timeZone, setTimeZone] = useState<string | null>(null);
 
   useEffect(() => {
+    if (typeof window === "undefined") return;
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    setTimeZone(tz || "UTC");
+  }, []);
+
+  useEffect(() => {
+    if (!timeZone) return;
     async function loadPuzzle() {
       try {
         const res = await fetch(`/api/daily?tz=${encodeURIComponent(timeZone)}`, {
@@ -76,12 +83,6 @@ export default function DailyPuzzleClient() {
     }
     loadPuzzle();
   }, [timeZone]);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    if (tz) setTimeZone(tz);
-  }, []);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -164,7 +165,7 @@ export default function DailyPuzzleClient() {
       const res = await fetch("/api/guess", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tmdbId: movie.tmdbId, timeZone })
+        body: JSON.stringify({ tmdbId: movie.tmdbId, timeZone: timeZone ?? "UTC" })
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
