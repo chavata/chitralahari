@@ -60,8 +60,7 @@ export async function getTodayPuzzle(dateStr: string): Promise<{
     .from("daily_puzzles")
     .select("*")
     .eq("puzzle_date", dateStr)
-    .single()
-    .returns<DailyPuzzleRecord>();
+    .maybeSingle();
 
   if (dailyErr && dailyErr.code !== "PGRST116") {
     throw dailyErr;
@@ -72,9 +71,8 @@ export async function getTodayPuzzle(dateStr: string): Promise<{
   const { data: movie, error: movieErr } = await supabase
     .from("movies")
     .select("*")
-    .eq("id", daily.movie_id)
-    .single()
-    .returns<MovieRecord>();
+    .eq("id", (daily as DailyPuzzleRecord).movie_id)
+    .maybeSingle();
   if (movieErr) throw movieErr;
 
   return { daily, movie };
