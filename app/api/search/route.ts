@@ -43,7 +43,7 @@ export async function GET(req: NextRequest) {
       // Re-query Supabase so we return consistent rows with IDs
       const { data: afterUpsert, error: afterError } = await supabase
         .from("movies")
-        .select("id, tmdb_id, title, release_year, normalized_title")
+        .select("id, tmdb_id, title, release_year, normalized_title, original_title")
         .ilike("title", `%${query}%`)
         .order("popularity", { ascending: false })
         .limit(20);
